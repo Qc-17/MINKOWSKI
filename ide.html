@@ -50,6 +50,7 @@ header {
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   user-select: none;
+  flex-wrap: wrap;
 }
 
 .brand {
@@ -117,6 +118,33 @@ select {
 }
 select:hover { border-color: var(--cyan-d); }
 
+.toggles-wrap {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  font-size: 10px;
+  color: var(--text-d);
+  letter-spacing: 1px;
+}
+
+.toggle-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.toggle-checkbox {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: var(--cyan);
+}
+
+.toggle-item label {
+  cursor: pointer;
+}
+
 .speed-wrap {
   display: flex;
   align-items: center;
@@ -126,6 +154,11 @@ select:hover { border-color: var(--cyan-d); }
   color: var(--text-d);
   letter-spacing: 1px;
 }
+
+.speed-wrap.hidden {
+  display: none !important;
+}
+
 input[type=range] {
   width: 72px;
   accent-color: var(--cyan);
@@ -220,6 +253,7 @@ main {
   flex-direction: column;
   overflow: hidden;
   background: var(--surface);
+  border-left: 1px solid var(--border);
 }
 
 .panel {
@@ -228,6 +262,10 @@ main {
   overflow: hidden;
 }
 .panel + .panel { border-top: 1px solid var(--border); }
+
+.panel.hidden {
+  display: none !important;
+}
 
 .panel-head {
   display: flex;
@@ -265,9 +303,45 @@ main {
   color: var(--green);
   white-space: pre-wrap;
   word-break: break-all;
+  margin-bottom: 4px;
 }
 .out-line::before { content: '▸ '; color: var(--cyan-d); font-size: 10px; }
 .out-empty { color: var(--text-d); font-style: italic; font-size: 11px; }
+
+.input-line {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+  align-items: flex-end;
+}
+.input-line::before { content: '◀ '; color: var(--amber); font-size: 10px; }
+.input-line input {
+  flex: 1;
+  background: var(--panel);
+  border: 1px solid var(--cyan-d);
+  border-radius: 2px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 4px 6px;
+  outline: none;
+  caret-color: var(--cyan);
+}
+.input-line input:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 8px rgba(0,206,245,0.2);
+}
+.input-line button {
+  padding: 4px 8px;
+  font-size: 10px;
+  background: var(--cyan-glow);
+  border-color: var(--cyan-d);
+  color: var(--cyan);
+}
+.input-line button:hover {
+  background: rgba(0,206,245,0.2);
+  border-color: var(--cyan);
+}
 
 /* Memory */
 .mem-row {
@@ -301,64 +375,198 @@ main {
 }
 .mem-val.mod { color: var(--cyan); }
 
-/* ── INPUT OVERLAY ───────────────────────────────────────────── */
-#input-overlay {
-  position: fixed; inset: 0;
-  background: rgba(5,8,16,0.82);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  backdrop-filter: blur(4px);
-}
-#input-overlay.hidden { display: none; }
-
-.input-box {
-  background: var(--surface);
-  border: 1px solid var(--cyan);
-  border-radius: 6px;
-  padding: 24px 26px;
-  min-width: 300px;
-  box-shadow: 0 0 60px rgba(0,206,245,0.12), 0 0 0 1px var(--border);
-}
-.input-label {
-  font-size: 9px;
-  letter-spacing: 3px;
-  color: var(--cyan-d);
-  margin-bottom: 5px;
-}
-.input-info {
-  font-size: 12px;
-  color: var(--cyan);
-  margin-bottom: 16px;
-}
-.input-box input[type=text] {
-  width: 100%;
-  background: var(--panel);
-  border: 1px solid var(--border2);
-  border-radius: 3px;
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 13px;
-  padding: 8px 11px;
-  outline: none;
-  margin-bottom: 11px;
-  caret-color: var(--cyan);
-}
-.input-box input[type=text]:focus { border-color: var(--cyan); }
-.input-box button {
-  width: 100%;
-  padding: 8px;
-  background: var(--cyan-glow);
-  border-color: var(--cyan-d);
-  color: var(--cyan);
-  letter-spacing: 3px;
-  font-size: 11px;
-}
-.input-box button:hover { background: rgba(0,206,245,0.2); border-color: var(--cyan); }
-
 /* ── SCROLLBAR SYNC ──────────────────────────────────────────── */
 .gutter::-webkit-scrollbar { display: none; }
+
+/* ── RESPONSIVE ──────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  header {
+    gap: 12px;
+    padding: 8px 12px;
+  }
+  
+  .toggles-wrap {
+    gap: 10px;
+    order: 10;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 768px) {
+  header {
+    gap: 10px;
+    padding: 6px 10px;
+    flex-wrap: wrap;
+  }
+  
+  .brand-name {
+    font-size: 12px;
+    letter-spacing: 3px;
+  }
+  
+  .brand-sub {
+    font-size: 8px;
+    letter-spacing: 1px;
+  }
+  
+  .sep { display: none; }
+  
+  .controls {
+    gap: 3px;
+    flex: 1;
+  }
+  
+  button {
+    font-size: 10px;
+    padding: 4px 8px;
+    flex: 1;
+  }
+  
+  .examples-wrap {
+    font-size: 9px;
+    flex: 1;
+  }
+  
+  select {
+    font-size: 10px;
+    padding: 3px 6px;
+    flex: 1;
+  }
+  
+  .toggles-wrap {
+    font-size: 9px;
+    gap: 8px;
+    order: 10;
+    width: 100%;
+  }
+  
+  main {
+    flex-direction: column;
+  }
+  
+  .editor-wrap {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    flex: 0.5;
+  }
+  
+  .right-pane {
+    width: 100%;
+    flex: 0.5;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+  
+  .gutter {
+    width: 40px;
+    padding-top: 8px;
+  }
+  
+  .gutter-line {
+    height: 20px;
+    line-height: 20px;
+    padding-right: 8px;
+    font-size: 11px;
+  }
+  
+  #editor {
+    font-size: 12px;
+    padding: 8px 12px;
+    line-height: 20px;
+  }
+  
+  .panel-body {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 6px 8px;
+  }
+  
+  .brand {
+    margin-bottom: 4px;
+  }
+  
+  .controls {
+    width: 100%;
+    gap: 2px;
+  }
+  
+  button {
+    font-size: 9px;
+    padding: 3px 6px;
+  }
+  
+  .examples-wrap {
+    width: 100%;
+    font-size: 9px;
+  }
+  
+  select {
+    flex: 1;
+  }
+  
+  .toggles-wrap {
+    width: 100%;
+    gap: 8px;
+    font-size: 9px;
+  }
+  
+  .toggle-item label {
+    font-size: 9px;
+  }
+  
+  .speed-wrap {
+    font-size: 9px;
+    width: 100%;
+  }
+  
+  .status {
+    font-size: 9px;
+    padding: 3px 8px;
+  }
+  
+  main {
+    flex-direction: column;
+  }
+  
+  .editor-wrap {
+    flex: 1;
+  }
+  
+  .right-pane {
+    width: 100%;
+    flex: 1;
+  }
+  
+  .gutter {
+    width: 32px;
+  }
+  
+  #editor {
+    font-size: 11px;
+    line-height: 18px;
+    padding: 6px 10px;
+  }
+  
+  .panel-body {
+    padding: 4px 6px;
+    font-size: 10px;
+    line-height: 1.5;
+  }
+  
+  .out-line {
+    font-size: 10px;
+    margin-bottom: 2px;
+  }
+}
 </style>
 </head>
 <body>
@@ -368,14 +576,12 @@ main {
     <div class="brand-name">MINKOWSKI</div>
     <div class="brand-sub">MINIMALIST KODING WRITING SYSTEM</div>
   </div>
-  <div class="sep"></div>
   <div class="controls">
     <button id="btn-run">▶ RUN</button>
     <button id="btn-step">⏭ STEP</button>
     <button id="btn-stop" disabled>⏹ STOP</button>
     <button id="btn-reset">↺ RESET</button>
   </div>
-  <div class="sep"></div>
   <div class="examples-wrap">
     ESEMPI
     <select id="examples">
@@ -387,8 +593,17 @@ main {
       <option value="fib">Fibonacci</option>
     </select>
   </div>
-  <div class="speed-wrap">
-    VELOCITÀ
+  <div class="toggles-wrap">
+    <div class="toggle-item">
+      <input type="checkbox" id="toggle-speed" class="toggle-checkbox">
+      <label for="toggle-speed">VELOCITÀ</label>
+    </div>
+    <div class="toggle-item">
+      <input type="checkbox" id="toggle-memory" class="toggle-checkbox">
+      <label for="toggle-memory">MEMORIA</label>
+    </div>
+  </div>
+  <div class="speed-wrap hidden" id="speed-wrap">
     <input type="range" id="speed" min="0" max="5" value="3">
     <span id="speed-val">×1</span>
   </div>
@@ -409,50 +624,51 @@ main {
         <div class="out-empty">nessun output</div>
       </div>
     </div>
-    <div class="panel" style="flex:1">
+    <div class="panel hidden" id="memory-panel" style="flex:1">
       <div class="panel-head"><div class="dot"></div>MEMORIA</div>
       <div class="panel-body" id="memory"></div>
     </div>
   </div>
 </main>
 
-<div id="input-overlay" class="hidden">
-  <div class="input-box">
-    <div class="input-label">INPUT RICHIESTO</div>
-    <div class="input-info" id="input-info">riga 0 attende un valore</div>
-    <input type="text" id="input-field" placeholder="inserisci valore…">
-    <button id="input-ok">CONFERMA</button>
-  </div>
-</div>
-
 <script>
-// ── Elements ──────────────────────────────────────────────────────────────────
-const editor      = document.getElementById('editor');
-const gutter      = document.getElementById('gutter');
-const outputEl    = document.getElementById('output');
-const memoryEl    = document.getElementById('memory');
-const statusEl    = document.getElementById('status');
-const inputOverlay = document.getElementById('input-overlay');
-const inputField  = document.getElementById('input-field');
-const inputOk     = document.getElementById('input-ok');
-const inputInfo   = document.getElementById('input-info');
-const speedSlider = document.getElementById('speed');
-const speedVal    = document.getElementById('speed-val');
-const examplesEl  = document.getElementById('examples');
+// ── Elements ──────────────────────────────────────────────────────────
+const editor         = document.getElementById('editor');
+const gutter         = document.getElementById('gutter');
+const outputEl       = document.getElementById('output');
+const memoryEl       = document.getElementById('memory');
+const memoryPanel    = document.getElementById('memory-panel');
+const statusEl       = document.getElementById('status');
+const speedSlider    = document.getElementById('speed');
+const speedVal       = document.getElementById('speed-val');
+const speedWrap      = document.getElementById('speed-wrap');
+const examplesEl     = document.getElementById('examples');
+const toggleSpeed    = document.getElementById('toggle-speed');
+const toggleMemory   = document.getElementById('toggle-memory');
 
 const btnRun   = document.getElementById('btn-run');
 const btnStep  = document.getElementById('btn-step');
 const btnStop  = document.getElementById('btn-stop');
 const btnReset = document.getElementById('btn-reset');
 
-// ── Interpreter ───────────────────────────────────────────────────────────────
+// ── Interpreter ─────────────────────────────────────────────────────────
 const interp = new MinkowskiInterpreter();
-let isRunning    = false;
-let stepMode     = false;
-let origLines    = [];
-let inputResolver = null;
+let isRunning      = false;
+let stepMode       = false;
+let origLines      = [];
+let inputResolver  = null;
+let awaitingInput  = false;
 
-// ── Speed ─────────────────────────────────────────────────────────────────────
+// ── Toggles ──────────────────────────────────────────────────────────
+toggleSpeed.addEventListener('change', () => {
+  speedWrap.classList.toggle('hidden', !toggleSpeed.checked);
+});
+
+toggleMemory.addEventListener('change', () => {
+  memoryPanel.classList.toggle('hidden', !toggleMemory.checked);
+});
+
+// ── Speed ───────────────────────────────────────────────────────────
 const SPEEDS = [
   ['×¼', 800], ['×½', 300], ['×1', 100], ['×2', 30], ['×4', 5], ['MAX', 0]
 ];
@@ -488,13 +704,13 @@ editor.addEventListener('keydown', e => {
   }
 });
 
-// ── Status ────────────────────────────────────────────────────────────────────
+// ── Status ───────────────────────────────────────────────────────────
 function setStatus(text, cls = '') {
   statusEl.textContent = text;
   statusEl.className = 'status' + (cls ? ' ' + cls : '');
 }
 
-// ── Output ────────────────────────────────────────────────────────────────────
+// ── Output ───────────────────────────────────────────────────────────
 function appendOutput(text) {
   const empty = outputEl.querySelector('.out-empty');
   if (empty) empty.remove();
@@ -509,8 +725,48 @@ function clearOutput() {
   outputEl.innerHTML = '<div class="out-empty">nessun output</div>';
 }
 
-// ── Memory panel ──────────────────────────────────────────────────────────────
+// ── Input inline ──────────────────────────────────────────────────────────
+function askInputInline(lineNum, resolve) {
+  const empty = outputEl.querySelector('.out-empty');
+  if (empty) empty.remove();
+  
+  const d = document.createElement('div');
+  d.className = 'input-line';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = `riga ${lineNum}: inserisci valore…`;
+  
+  const btn = document.createElement('button');
+  btn.textContent = '✓';
+  
+  const submit = () => {
+    if (inputResolver) {
+      const v = input.value;
+      inputResolver(v);
+      inputResolver = null;
+      awaitingInput = false;
+      d.remove();
+    }
+  };
+  
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+  });
+  btn.addEventListener('click', submit);
+  
+  d.appendChild(input);
+  d.appendChild(btn);
+  outputEl.appendChild(d);
+  outputEl.scrollTop = outputEl.scrollHeight;
+  input.focus();
+  
+  inputResolver = resolve;
+  awaitingInput = true;
+}
+
+// ── Memory panel ──────────────────────────────────────────────────────────
 function renderMemory(lines, pc) {
+  if (!toggleMemory.checked) return;
   if (!lines || lines.length === 0) { memoryEl.innerHTML = ''; return; }
   let html = '';
   for (let i = 0; i < lines.length; i++) {
@@ -533,32 +789,12 @@ function escHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ── Input overlay ─────────────────────────────────────────────────────────────
-function askInput(lineNum, resolve) {
-  inputInfo.textContent = `riga ${lineNum} attende un valore`;
-  inputField.value = '';
-  inputOverlay.classList.remove('hidden');
-  inputField.focus();
-  inputResolver = resolve;
-}
-
-function submitInput() {
-  if (!inputResolver) return;
-  const v = inputField.value;
-  inputOverlay.classList.add('hidden');
-  const res = inputResolver;
-  inputResolver = null;
-  res(v);
-}
-
-inputOk.addEventListener('click', submitInput);
-inputField.addEventListener('keydown', e => { if (e.key === 'Enter') submitInput(); });
-
-// ── RUN ───────────────────────────────────────────────────────────────────────
+// ── RUN ────────────────────────────────────────────────────────────
 async function runProgram() {
   if (isRunning) return;
   isRunning = true; stepMode = false;
-  clearOutput(); memoryEl.innerHTML = '';
+  clearOutput();
+  if (toggleMemory.checked) memoryEl.innerHTML = '';
   interp.load(editor.value);
   origLines = [...interp.lines];
   setStatus('IN ESECUZIONE', 'run');
@@ -579,7 +815,7 @@ async function runProgram() {
     onInput: (lineNum, resolve) => {
       buildGutter(lineNum);
       renderMemory(interp.lines, lineNum);
-      askInput(lineNum, resolve);
+      askInputInline(lineNum, resolve);
     },
     onStep: (pc, lines) => {
       buildGutter(pc);
@@ -600,13 +836,14 @@ function finishRun(msg = 'TERMINATO') {
   renderMemory(interp.lines, null);
 }
 
-// ── STEP ──────────────────────────────────────────────────────────────────────
+// ── STEP ────────────────────────────────────────────────────────────
 function stepProgram() {
   if (isRunning && !stepMode) return;
 
   if (!stepMode) {
     stepMode = true;
-    clearOutput(); memoryEl.innerHTML = '';
+    clearOutput();
+    if (toggleMemory.checked) memoryEl.innerHTML = '';
     interp.load(editor.value);
     origLines = [...interp.lines];
     btnStop.disabled = false;
@@ -623,7 +860,7 @@ function stepProgram() {
     buildGutter(r.line);
     renderMemory(interp.lines, r.line);
     setStatus(`IN ATTESA INPUT`, 'step');
-    askInput(r.line, val => {
+    askInputInline(r.line, val => {
       interp.step(val);
       buildGutter(interp.pc);
       renderMemory(interp.lines, interp.pc);
@@ -640,16 +877,17 @@ function stepProgram() {
   setStatus(`PC: ${interp.pc}`, 'step');
 }
 
-// ── STOP / RESET ──────────────────────────────────────────────────────────────
+// ── STOP / RESET ──────────────────────────────────────────────────────────
 function stopProgram() {
   interp.halted = true; isRunning = false; stepMode = false;
-  if (inputResolver) { inputOverlay.classList.add('hidden'); inputResolver(''); inputResolver = null; }
+  if (awaitingInput) { awaitingInput = false; inputResolver = null; }
   finishRun('FERMATO');
 }
 
 function resetProgram() {
   stopProgram();
-  clearOutput(); memoryEl.innerHTML = '';
+  clearOutput();
+  if (toggleMemory.checked) memoryEl.innerHTML = '';
   setStatus('PRONTO');
   buildGutter();
 }
@@ -659,14 +897,14 @@ btnStep.addEventListener('click', stepProgram);
 btnStop.addEventListener('click', stopProgram);
 btnReset.addEventListener('click', resetProgram);
 
-// ── Keyboard shortcuts ────────────────────────────────────────────────────────
+// ── Keyboard shortcuts ───────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); runProgram(); }
   if (e.key === 'F8')                 { e.preventDefault(); stepProgram(); }
   if (e.key === 'Escape')             { stopProgram(); }
 });
 
-// ── Examples ──────────────────────────────────────────────────────────────────
+// ── Examples ──────────────────────────────────────────────────────────
 const EXAMPLES = {
   hello: `>Ciao, Mondo!`,
 
@@ -692,55 +930,6 @@ C
 >#3`,
 
   fib:
-`# Fibonacci: prime 8 cifre
-# Riga 9 = a, Riga 10 = b, Riga 11 = temp, Riga 12 = contatore
-@9
-0
-1
-0
-0
->#9
->#10
->#11
->#12
-@13
-0
-1
-0
-0
->#9
-#(11:#9 + #10)
-#(9:#10)
-#(10:#11)
->#10
-#(12:#12 + 1)
-? #12 - 6 : @16`
-};
-
-// Reworked simpler Fibonacci:
-EXAMPLES.fib =
-`# Fibonacci: prime 8 coppie (a, b)
-# linee dati: 8=a, 9=b, 10=temp, 11=contatore
-@12
-0
-1
-0
-0
-0
-0
-0
-0
->#8
->#9
-#(10:#8 + #9)
-#(8:#9)
-#(9:#10)
-#(11:#11 + 1)
-? #11 - 7 : @9`;
-
-// Fibonacci: 10 termini con contatore
-// Linee dati: 2=a, 3=b, 4=temp, 5=contatore
-EXAMPLES.fib =
 `@6
 0
 1
@@ -751,7 +940,8 @@ EXAMPLES.fib =
 #(2:#3)
 #(3:#4)
 #(5:#5 + 1)
-? #5 - 10 : @6`;
+? #5 - 10 : @6`
+};
 
 examplesEl.addEventListener('change', () => {
   const v = examplesEl.value;
@@ -762,7 +952,7 @@ examplesEl.addEventListener('change', () => {
   examplesEl.value = '';
 });
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+// ── Init ────────────────────────────────────────────────────────────
 editor.value = EXAMPLES.counter;
 buildGutter();
 </script>
