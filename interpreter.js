@@ -22,10 +22,10 @@ class MinkowskiInterpreter {
     this.lines = source.split('\n');
   }
 
-  // ── memory access ──────────────────────────────────────────────────────────
+  // ── memory access ────────────────────────────────────────────────────────
 
   getLine(n) {
-    return (n >= 1 && n <= this.lines.length) ? this.lines[n - 1] : '';
+    return (n >= 1 && n <= this.lines.length) ? this.lines[n - 1] : '';  
   }
 
   setLine(n, val) {
@@ -49,9 +49,9 @@ class MinkowskiInterpreter {
   // ── expression evaluation ──────────────────────────────────────────────────
 
   // Returns true only if the string is a pure numeric/boolean expression
-  // (digits, spaces, + - * / & | ! parentheses dot).
+  // (digits, spaces, + - * / & | ! parentheses dot and comparison operators).
   _isNumExpr(s) {
-    return s.trim() !== '' && /^[\s\d+\-*/&|!().]+$/.test(s);
+    return s.trim() !== '' && /^[\s\d+\-*/&|!().<>~=]+$/.test(s);
   }
 
   // Evaluate a resolved string: numeric if possible, string otherwise.
@@ -59,7 +59,9 @@ class MinkowskiInterpreter {
     if (!this._isNumExpr(s)) return s;
     try {
       // Map single & → && and single | → ||
-      const expr = s.replace(/&(?!&)/g, '&&').replace(/\|(?!\|)/g, '||');
+      // Map comparison operators: = → ==, ~ → !=, >= and <= stay, > and < stay
+      let expr = s.replace(/&(?!&)/g, '&&').replace(/\|(?!\|)/g, '||');
+      expr = expr.replace(/(?<![<>!=])=(?!=)/g, '==').replace(/~/g, '!=');
       const v = Function('"use strict";return(' + expr + ')')();
       if (typeof v === 'boolean') return v ? 1 : 0;
       return v;
@@ -68,7 +70,7 @@ class MinkowskiInterpreter {
     }
   }
 
-  // ── single step ────────────────────────────────────────────────────────────
+  // ── single step ─────────────────────────────────────────────────────────
 
   // Returns { status, value?, line? }
   //   status: 'ok' | 'output' | 'input' | 'halt'
@@ -154,7 +156,7 @@ class MinkowskiInterpreter {
     }
 
     // ── conditional  ?cond:@N ──
-    const cond = t.match(/^\?\s*(.+?)\s*:\s*@(\d+)\s*$/);
+    const cond = t.match(/^\?\s*(.+?)\s*: *@(\d+)\s*$/);
     if (cond) {
       const v = this._eval(this.resolveRefs(cond[1]));
       if (v) this.pc = parseInt(cond[2], 10);
@@ -177,7 +179,7 @@ class MinkowskiInterpreter {
     return { status: 'ok' };
   }
 
-  // ── async run ──────────────────────────────────────────────────────────────
+  // ── async run ─────────────────────────────────────────────────────────
 
   async run({ onOutput, onInput, onHalt, onStep, delay = 20 } = {}) {
     const sleep = ms => new Promise(r => setTimeout(r, ms));
