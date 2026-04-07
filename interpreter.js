@@ -1,5 +1,12 @@
 // MINKOWSKI Interpreter
+// Conforms to the MINKOWSKI language manual.
 // Lines are 1-indexed. They serve as both code and memory.
+//
+// API (backward-compatible with ide.html):
+//   new MinkowskiInterpreter()
+//   .load(source)
+//   .step(inputVal)  →  { status: 'ok'|'output'|'input'|'halt', value?, line? }
+//   .run({ onOutput, onInput, onHalt, onStep, delay })  →  Promise<void>
 
 class MinkowskiInterpreter {
   constructor() {
@@ -9,7 +16,7 @@ class MinkowskiInterpreter {
   _reset() {
     this.lines          = [];
     this.pc             = 1;
-    this.returnStack    = [];
+    this.returnAddr     = null;   // single return register (not a stack — see @N / * semantics)
     this.outputEnabled  = true;
     this.inIgnoredBlock = false;
     this.halted         = false;
@@ -22,10 +29,13 @@ class MinkowskiInterpreter {
     this.lines = source.split('\n');
   }
 
-  // ── memory access ────────────────────────────────────────────────────────
+  // ── memory access ─────────────────────────────────────────────────────────
 
   getLine(n) {
-    return (n >= 1 && n <= this.lines.length) ? this.lines[n - 1] : '';  
+    if (n < 1 || n > this.lines.length) return '';
+    const v = this.lines[n - 1];
+    // A line whose trimmed content is "%" represents an empty string (see spec §6).
+    return v.trim() === '%' ? '' : v;
   }
 
   setLine(n, val) {
@@ -34,10 +44,10 @@ class MinkowskiInterpreter {
     this.lines[n - 1] = String(val);
   }
 
-  // ── reference resolution ───────────────────────────────────────────────────
-
+  // ── reference resolution ──────────────────────────────────────────────────
   // Replace #N with the (recursively resolved) content of line N.
   // \#N is an escape → literal "#N".
+
   resolveRefs(str, depth = 0) {
     if (depth > 64) return str;
     return str.replace(/\\#(\d+)|#(\d+)/g, (_, esc, num) => {
@@ -46,34 +56,164 @@ class MinkowskiInterpreter {
     });
   }
 
-  // ── expression evaluation ──────────────────────────────────────────────────
+  // ── expression evaluation ─────────────────────────────────────────────────
+  // A string is numeric if it contains ONLY: digits, spaces, operators, parens, dot.
+  // Operator precedence (highest → lowest) per MINKOWSKI spec:
+  //   !         unary NOT
+  //   * /       multiplication, division
+  //   + -       addition, subtraction
+  //   = ~       equality (=) and inequality (~)     ← higher than comparison
+  //   > < >= <= comparison
+  //   &         logical AND
+  //   |         logical OR                          ← lowest
 
-  // Returns true only if the string is a pure numeric/boolean expression
-  // (digits, spaces, + - * / & | ! parentheses dot and comparison operators).
   _isNumExpr(s) {
     return s.trim() !== '' && /^[\s\d+\-*/&|!().<>~=]+$/.test(s);
   }
 
-  // Evaluate a resolved string: numeric if possible, string otherwise.
   _eval(s) {
     if (!this._isNumExpr(s)) return s;
     try {
-      // Map single & → && and single | → ||
-      // Map comparison operators: = → ==, ~ → !=, >= and <= stay, > and < stay
-      let expr = s.replace(/&(?!&)/g, '&&').replace(/\|(?!\|)/g, '||');
-      expr = expr.replace(/(?<![<>!=])=(?!=)/g, '==').replace(/~/g, '!=');
-      const v = Function('"use strict";return(' + expr + ')')();
-      if (typeof v === 'boolean') return v ? 1 : 0;
-      return v;
+      const state = { pos: 0 };
+      const result = this._parseOr(s, state);
+      // consume trailing whitespace
+      while (state.pos < s.length && (s[state.pos] === ' ' || s[state.pos] === '\t')) state.pos++;
+      // if not fully consumed, treat as string
+      if (state.pos < s.length) return s;
+      if (typeof result === 'boolean') return result ? 1 : 0;
+      return result;
     } catch (_) {
       return s;
     }
   }
 
-  // ── single step ─────────────────────────────────────────────────────────
+  // ── recursive descent parser ──────────────────────────────────────────────
 
+  _skipWs(s, st) {
+    while (st.pos < s.length && (s[st.pos] === ' ' || s[st.pos] === '\t')) st.pos++;
+  }
+
+  // or = and ('|' and)*
+  _parseOr(s, st) {
+    let v = this._parseAnd(s, st);
+    this._skipWs(s, st);
+    while (st.pos < s.length && s[st.pos] === '|') {
+      st.pos++;
+      const r = this._parseAnd(s, st);
+      v = (v || r) ? 1 : 0;
+      this._skipWs(s, st);
+    }
+    return v;
+  }
+
+  // and = cmp ('&' cmp)*
+  _parseAnd(s, st) {
+    let v = this._parseCmp(s, st);
+    this._skipWs(s, st);
+    while (st.pos < s.length && s[st.pos] === '&') {
+      st.pos++;
+      const r = this._parseCmp(s, st);
+      v = (v && r) ? 1 : 0;
+      this._skipWs(s, st);
+    }
+    return v;
+  }
+
+  // cmp = eq (('>' | '<' | '>=' | '<=') eq)*
+  // Note: equality (= ~) has HIGHER precedence than comparison (> <) per spec.
+  _parseCmp(s, st) {
+    let v = this._parseEq(s, st);
+    this._skipWs(s, st);
+    while (st.pos < s.length) {
+      let op = null;
+      if      (s[st.pos] === '>' && s[st.pos + 1] === '=') { op = '>='; st.pos += 2; }
+      else if (s[st.pos] === '<' && s[st.pos + 1] === '=') { op = '<='; st.pos += 2; }
+      else if (s[st.pos] === '>')                           { op = '>';  st.pos++;    }
+      else if (s[st.pos] === '<')                           { op = '<';  st.pos++;    }
+      else break;
+      const r = this._parseEq(s, st);
+      if      (op === '>')  v = (v >  r) ? 1 : 0;
+      else if (op === '<')  v = (v <  r) ? 1 : 0;
+      else if (op === '>=') v = (v >= r) ? 1 : 0;
+      else if (op === '<=') v = (v <= r) ? 1 : 0;
+      this._skipWs(s, st);
+    }
+    return v;
+  }
+
+  // eq = add (('=' | '~') add)*
+  // '=' is equality, '~' is not-equal.
+  _parseEq(s, st) {
+    let v = this._parseAdd(s, st);
+    this._skipWs(s, st);
+    while (st.pos < s.length) {
+      let op = null;
+      if      (s[st.pos] === '=') { op = '='; st.pos++; }
+      else if (s[st.pos] === '~') { op = '~'; st.pos++; }
+      else break;
+      const r = this._parseAdd(s, st);
+      v = (op === '=') ? (v == r ? 1 : 0) : (v != r ? 1 : 0);
+      this._skipWs(s, st);
+    }
+    return v;
+  }
+
+  // add = mul (('+' | '-') mul)*
+  _parseAdd(s, st) {
+    let v = this._parseMul(s, st);
+    this._skipWs(s, st);
+    while (st.pos < s.length && (s[st.pos] === '+' || s[st.pos] === '-')) {
+      const op = s[st.pos++];
+      const r  = this._parseMul(s, st);
+      v = (op === '+') ? v + r : v - r;
+      this._skipWs(s, st);
+    }
+    return v;
+  }
+
+  // mul = unary (('*' | '/') unary)*
+  _parseMul(s, st) {
+    let v = this._parseUnary(s, st);
+    this._skipWs(s, st);
+    while (st.pos < s.length && (s[st.pos] === '*' || s[st.pos] === '/')) {
+      const op = s[st.pos++];
+      const r  = this._parseUnary(s, st);
+      v = (op === '*') ? v * r : v / r;
+      this._skipWs(s, st);
+    }
+    return v;
+  }
+
+  // unary = ('!' | '-') unary | primary
+  _parseUnary(s, st) {
+    this._skipWs(s, st);
+    if (s[st.pos] === '!') { st.pos++; return this._parseUnary(s, st) ? 0 : 1; }
+    if (s[st.pos] === '-') { st.pos++; return -this._parseUnary(s, st); }
+    return this._parsePrimary(s, st);
+  }
+
+  // primary = '(' or ')' | NUMBER
+  _parsePrimary(s, st) {
+    this._skipWs(s, st);
+    if (s[st.pos] === '(') {
+      st.pos++;
+      const v = this._parseOr(s, st);
+      this._skipWs(s, st);
+      if (s[st.pos] === ')') st.pos++;
+      return v;
+    }
+    // number (integer or float)
+    const start = st.pos;
+    while (st.pos < s.length && /[\d.]/.test(s[st.pos])) st.pos++;
+    const num = parseFloat(s.slice(start, st.pos));
+    if (isNaN(num)) throw new Error('parse error at pos ' + start);
+    return num;
+  }
+
+  // ── single step ───────────────────────────────────────────────────────────
   // Returns { status, value?, line? }
   //   status: 'ok' | 'output' | 'input' | 'halt'
+
   step(inputVal) {
     if (this.halted) return { status: 'halt' };
 
@@ -121,10 +261,14 @@ class MinkowskiInterpreter {
       return { status: 'ok' };
     }
 
-    // ── return from subroutine ──
+    // ── return ──
+    // Torna all'ultimo @ eseguito (punto di ritorno non viene consumato).
+    // Se non è mai stato eseguito un @, il programma termina.
     if (t === '*') {
-      if (this.returnStack.length > 0) {
-        this.pc = this.returnStack.pop();
+      if (this.returnAddr !== null) {
+        this.pc = this.returnAddr;
+        // returnAddr is NOT cleared: * always returns to the same saved address,
+        // enabling the infinite-loop behaviour described in the manual.
       } else {
         this.halted = true;
         return { status: 'halt' };
@@ -139,11 +283,12 @@ class MinkowskiInterpreter {
       return { status: 'input', line: this.pc };
     }
 
-    // ── jump  @N ──
+    // ── jump / subroutine call  @N ──
+    // Salva come punto di ritorno la riga SUCCESSIVA, salta alla riga N.
     const jmp = t.match(/^@(\d+)$/);
     if (jmp) {
-      this.returnStack.push(this.pc + 1);
-      this.pc = parseInt(jmp[1], 10);
+      this.returnAddr = this.pc + 1;
+      this.pc         = parseInt(jmp[1], 10);
       return { status: 'ok' };
     }
 
@@ -155,8 +300,8 @@ class MinkowskiInterpreter {
       return { status: 'ok' };
     }
 
-    // ── conditional  ?cond:@N ──
-    const cond = t.match(/^\?\s*(.+?)\s*: *@(\d+)\s*$/);
+    // ── conditional  ? condizione : @N ──
+    const cond = t.match(/^\?\s*(.+?)\s*:\s*@(\d+)\s*$/);
     if (cond) {
       const v = this._eval(this.resolveRefs(cond[1]));
       if (v) this.pc = parseInt(cond[2], 10);
@@ -174,12 +319,12 @@ class MinkowskiInterpreter {
       return { status: 'ok' };
     }
 
-    // ── value / string line (no side effects) ──
+    // ── value / data line (no side effects) ──
     this.pc++;
     return { status: 'ok' };
   }
 
-  // ── async run ─────────────────────────────────────────────────────────
+  // ── async run ─────────────────────────────────────────────────────────────
 
   async run({ onOutput, onInput, onHalt, onStep, delay = 20 } = {}) {
     const sleep = ms => new Promise(r => setTimeout(r, ms));
